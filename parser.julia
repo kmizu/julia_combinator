@@ -17,16 +17,14 @@ type Parser
 end
 
 function p_or(lhs, rhs)
-  Parser(
-    function(input)
-      r = lhs.parse(input)
-      if !r.success
-        rhs.parse(input)
-      else
-        r 
-      end
+  Parser() do input
+    r = lhs.parse(input)
+    if !r.success
+      rhs.parse(input)
+    else
+      r 
     end
-  )
+  end
 end
 
 function p_rule(f)
@@ -34,51 +32,46 @@ function p_rule(f)
 end
 
 function p_cat(lhs, rhs)
-  Parser(
-    function(input)
-      r1 = lhs.parse(input)
-      if r1.success
-        r2 = rhs.parse(r1.next)
-        if r2.success
-          Success((r1.value, r2.value), r2.next)
-        else
-          Failure(r2.next)
-        end
+  Parser() do input
+    r1 = lhs.parse(input)
+    if r1.success
+      r2 = rhs.parse(r1.next)
+      if r2.success
+        Success((r1.value, r2.value), r2.next)
       else
-        Failure(r1.next)
+        Failure(r2.next)
       end
+    else
+      Failure(r1.next)
     end
-  )
+  end
 end
 
+
 function p_map(parser, f)
-  Parser(
-    function(input)
-      r = parser.parse(input)
-      if r.success
-        Success(f(r.value), r.next)
-      else
-        r 
-      end
+  Parser() do input
+    r = parser.parse(input)
+    if r.success
+      Success(f(r.value), r.next)
+    else
+      r 
     end
-  )
+  end
 end
 
 function p_repeat(parser)
-  Parser(
-    function(input)
-      rest = input
-      values = [] 
-      while true
-        r = parser.parse(rest)
-        if !r.success
-          return Success(values, rest)
-        end
-        values = vcat(values, r.value)
-        rest = r.next
+  Parser() do input
+    rest = input
+    values = [] 
+    while true
+      r = parser.parse(rest)
+      if !r.success
+        return Success(values, rest)
       end
+      values = vcat(values, r.value)
+      rest = r.next
     end
-  )
+  end
 end
 
 function p_chainl(p, q)
@@ -100,29 +93,25 @@ function p_chainl(p, q)
 end
 
 function p_string(literal)
-  Parser(
-    function(input)
-      range = search(input, literal)
-      if range.start != 1
-        Failure(input)
-      else
-        Success(literal, input[length(literal)+1:end])
-      end
+  Parser() do input
+    range = search(input, literal)
+    if range.start != 1
+      Failure(input)
+    else
+      Success(literal, input[length(literal)+1:end])
     end
-  )
+  end
 end
 
 function p_regex(regex)
-  Parser(
-    function(input)
-      r = match(regex, input)
-      if r != nothing
-        Success(r.match, input[length(r.match)+1:end])
-      else
-        Failure(input)
-      end
+  Parser() do input
+    r = match(regex, input)
+    if r != nothing
+      Success(r.match, input[length(r.match)+1:end])
+    else
+      Failure(input)
     end
-  )
+  end
 end
 
 Base.:+(p1::Parser, p2::Parser) = p_cat(p1, p2)
