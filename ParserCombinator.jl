@@ -2,12 +2,12 @@ module ParserCombinator
   export Success,
          Failure,
          Parser,
-         p_or,
-         p_rule,
-         p_cat,
+         @rule,
+         op_or,
+         op_cat,
          p_repeat,
          p_chainl,
-         p_map,
+         op_map,
          p_string,
          p_regex
 
@@ -29,7 +29,13 @@ module ParserCombinator
     Parser(parse) = new(parse)
   end
 
-  function p_or(lhs, rhs)
+  macro rule(body)
+    return quote
+      Parser((input) -> $(esc(body)).parse(input))
+    end
+  end
+
+  function op_or(lhs, rhs)
     Parser() do input
       r = lhs.parse(input)
       if !r.success
@@ -40,11 +46,7 @@ module ParserCombinator
     end
   end
 
-  function p_rule(f)
-    Parser((input) -> f().parse(input))
-  end
-
-  function p_cat(lhs, rhs)
+  function op_cat(lhs, rhs)
     Parser() do input
       r1 = lhs.parse(input)
       if r1.success
@@ -61,7 +63,7 @@ module ParserCombinator
   end
 
 
-  function p_map(parser, f)
+  function op_map(parser, f)
     Parser() do input
       r = parser.parse(input)
       if r.success
@@ -88,7 +90,7 @@ module ParserCombinator
   end
 
   function p_chainl(p, q)
-    value = p_map(p_cat(p, p_repeat(p_cat(q, p))),
+    value = op_map(op_cat(p, p_repeat(op_cat(q, p))),
                   function(value)
                     x = value[1]
                     xs = value[2]
@@ -127,7 +129,7 @@ module ParserCombinator
     end
   end
 
-  Base.:+(p1::Parser, p2::Parser) = p_cat(p1, p2)
-  Base.:/(p1::Parser, p2::Parser) = p_or(p1, p2)
-  Base.:>(p::Parser, f::Function) = p_map(p, f)
+  Base.:+(p1::Parser, p2::Parser) = op_cat(p1, p2)
+  Base.:/(p1::Parser, p2::Parser) = op_or(p1, p2)
+  Base.:>(p::Parser, f::Function) = op_map(p, f)
 end
