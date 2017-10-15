@@ -3,13 +3,14 @@ module ParserCombinator
          Failure,
          Parser,
          @rule,
-         op_or,
-         op_cat,
-         p_repeat,
-         p_chainl,
-         op_map,
+         @define_rule,
+         or,
+         cat,
+         repeat,
+         chainl,
+         map,
          p_string,
-         p_regex
+         regex
 
   type Success
     value
@@ -29,13 +30,15 @@ module ParserCombinator
     Parser(parse) = new(parse)
   end
 
-  macro rule(body)
-    return quote
-      Parser((input) -> $(esc(body)).parse(input))
-    end
+  macro rule(body, name)
+    esc(quote
+      function $(name)()
+        Parser((input) -> ($body)().parse(input))
+      end
+    end)
   end
 
-  function op_or(lhs, rhs)
+  function or(lhs :: Parser, rhs :: Parser)
     Parser() do input
       r = lhs.parse(input)
       if !r.success
@@ -46,7 +49,7 @@ module ParserCombinator
     end
   end
 
-  function op_cat(lhs, rhs)
+  function cat(lhs :: Parser, rhs :: Parser)
     Parser() do input
       r1 = lhs.parse(input)
       if r1.success
@@ -63,7 +66,7 @@ module ParserCombinator
   end
 
 
-  function op_map(parser, f)
+  function map(parser :: Parser, f :: Function)
     Parser() do input
       r = parser.parse(input)
       if r.success
@@ -74,7 +77,7 @@ module ParserCombinator
     end
   end
 
-  function p_repeat(parser)
+  function repeat(parser :: Parser)
     Parser() do input
       rest = input
       values = [] 
@@ -89,8 +92,8 @@ module ParserCombinator
     end
   end
 
-  function p_chainl(p, q)
-    value = op_map(op_cat(p, p_repeat(op_cat(q, p))),
+  function chainl(p :: Parser, q :: Parser)
+    value = map(cat(p, repeat(cat(q, p))),
                   function(value)
                     x = value[1]
                     xs = value[2]
@@ -118,7 +121,7 @@ module ParserCombinator
     end
   end
 
-  function p_regex(regex)
+  function regex(regex :: Regex)
     Parser() do input
       r = match(regex, input)
       if r != nothing
@@ -129,7 +132,7 @@ module ParserCombinator
     end
   end
 
-  Base.:+(p1::Parser, p2::Parser) = op_cat(p1, p2)
-  Base.:/(p1::Parser, p2::Parser) = op_or(p1, p2)
-  Base.:>(p::Parser, f::Function) = op_map(p, f)
+  Base.:+(p1::Parser, p2::Parser) = cat(p1, p2)
+  Base.:/(p1::Parser, p2::Parser) = or(p1, p2)
+  Base.:>(p::Parser, f::Function) = map(p, f)
 end
